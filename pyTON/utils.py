@@ -20,7 +20,7 @@ def pubkey_b64_to_hex(b64_key):
     """
     bin_key = base64.b64decode(b64_key)
     words = 18
-    ints_key = struct.unpack(f'{"H"*words}', bin_key)
+    ints_key = struct.unpack(f'{"H" * words}', bin_key)
     key = [x.to_bytes(2, byteorder='little') for x in ints_key]
     key = b''.join(key)
     key = [((x & 0x0F) << 4 | (x & 0xF0) >> 4).to_bytes(1, byteorder='little') for x in key]
@@ -37,6 +37,7 @@ def parallelize(f):
             loop = asyncio.get_event_loop()
             return loop.run_in_executor(self._executor, functools.partial(f, self, *args, **kwds))
         raise RuntimeError(self._style)
+
     return wrapper
 
 
@@ -50,7 +51,7 @@ def raw_to_userfriendly(address, tag=0x11):
     key = bytearray.fromhex(key)
 
     short_ints = [j * 256 + i for i, j in zip(*[iter(key)] * 2)]
-    payload = struct.pack(f'Bb{"H"*16}', tag, workchain_id, *short_ints)
+    payload = struct.pack(f'Bb{"H" * 16}', tag, workchain_id, *short_ints)
     crc = crc16.crc16xmodem(payload)
 
     e_key = payload + struct.pack('>H', crc)

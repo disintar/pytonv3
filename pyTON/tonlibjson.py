@@ -7,6 +7,7 @@ import asyncio
 import time
 import functools
 
+
 def get_tonlib_path():
     arch_name = platform.system().lower()
     if arch_name == 'darwin':
@@ -17,7 +18,8 @@ def get_tonlib_path():
         raise RuntimeError('Platform could not be identified')
     return pkg_resources.resource_filename(
         'pyTON',
-        'distlib/'+arch_name+'/'+lib_name)
+        'distlib/' + arch_name + '/' + lib_name)
+
 
 class TonLib:
     def __init__(self, loop, cdll_path=None):
@@ -48,14 +50,13 @@ class TonLib:
         tonlib_json_client_destroy.restype = None
         tonlib_json_client_destroy.argtypes = [c_void_p]
         self._tonlib_json_client_destroy = tonlib_json_client_destroy
-        
+
         self.futures = {}
         self.loop = loop
         self.loop_task = asyncio.ensure_future(self.tl_loop(), loop=self.loop)
-        self.shutdown_state = False # False, "started", "finished"
+        self.shutdown_state = False  # False, "started", "finished"
         self.request_num = 0
         self.max_requests = None
-
 
     def __del__(self):
         self._tonlib_json_client_destroy(self._client)
@@ -75,7 +76,7 @@ class TonLib:
         self.restart_hook = hook
 
     def execute(self, query, timeout=10):
-        extra_id = "%s:%s"%(time.time()+timeout,random.random())
+        extra_id = "%s:%s" % (time.time() + timeout, random.random())
         query["@extra"] = extra_id
         self.loop.run_in_executor(None, lambda: self.send(query))
         future_result = self.loop.create_future()
@@ -86,40 +87,40 @@ class TonLib:
         return future_result
 
     async def tl_loop(self):
-      while True:
-        result = True
-        autorestart = False
-        while result:
-          try:
-              f = functools.partial(self.receive, 0)
-              result = await asyncio.wait_for(self.loop.run_in_executor(None, f), timeout=3.0)
-          except asyncio.TimeoutError:
-              print("Timeout")
-              autorestart = True
-              result = False
-          if result and isinstance(result, dict) and ("@extra" in result) and (result["@extra"] in self.futures):
-             try:
-               if not self.futures[result["@extra"]].done():
-                 self.futures[result["@extra"]].set_result(result)
-                 del self.futures[result["@extra"]]
-             except Exception as e:
-               print(e)
-        now = time.time()
-        to_del = []
-        for i in self.futures:
-          if float(i.split(":")[0]) > now:
-            break
-          autorestart = True
-          if self.futures[i].done():
-            to_del.append(i)
-            continue
-          to_del.append(i)
-          self.futures[i].cancel()
-        for i in to_del:
-          del self.futures[i]
-        if autorestart:
-          asyncio.ensure_future(self.restart_hook(), loop=self.loop)
-        if (not len(self.futures)) and (self.shutdown_state in ["started","finished"]):
-          break
-        await asyncio.sleep(0.05)
-      self.shutdown_state = "finished"
+        while True:
+            result = True
+            autorestart = False
+            while result:
+                try:
+                    f = functools.partial(self.receive, 0)
+                    result = await asyncio.wait_for(self.loop.run_in_executor(None, f), timeout=3.0)
+                except asyncio.TimeoutError:
+                    print("Timeout")
+                    autorestart = True
+                    result = False
+                if result and isinstance(result, dict) and ("@extra" in result) and (result["@extra"] in self.futures):
+                    try:
+                        if not self.futures[result["@extra"]].done():
+                            self.futures[result["@extra"]].set_result(result)
+                            del self.futures[result["@extra"]]
+                    except Exception as e:
+                        print(e)
+            now = time.time()
+            to_del = []
+            for i in self.futures:
+                if float(i.split(":")[0]) > now:
+                    break
+                autorestart = True
+                if self.futures[i].done():
+                    to_del.append(i)
+                    continue
+                to_del.append(i)
+                self.futures[i].cancel()
+            for i in to_del:
+                del self.futures[i]
+            if autorestart:
+                asyncio.ensure_future(self.restart_hook(), loop=self.loop)
+            if (not len(self.futures)) and (self.shutdown_state in ["started", "finished"]):
+                break
+            await asyncio.sleep(0.05)
+        self.shutdown_state = "finished"
